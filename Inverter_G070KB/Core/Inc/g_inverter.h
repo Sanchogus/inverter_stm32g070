@@ -100,7 +100,7 @@ uint32_t calcPWM(void);						//расчет ШИМ
 uint32_t calcRepeat(void);					//вычисляет сколько надо делать повторов и какой будет шаг угла
 uint32_t calcPhase(uint32_t angle);			//вычисляет амплитуду для текущего угла и текущей фазы
 uint32_t g_invertorSysTick(void);			//управление разгоном и торможением
-
+uint32_t calcAmplitude(void);				//расчет амплитуды от частоты
 
 
 

@@ -113,14 +113,10 @@ int main(void)
 
   HAL_UART_Receive_IT(&huart1, (uint8_t*)&g_uartBuf.byte[U_ADDR], 1);
 
-  /****************/
 
-  /*********************/
-  //g_arr1[F_SET] = 500;
-  //g_arr1[AMPLITUDE]= 100;
-  //g_arr1[REP_CNT] = 1;
 
   g_TIM1_init();	//запускаем генерацию
+
 
   /* USER CODE END 2 */
 
@@ -128,32 +124,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
     {
- //     HAL_Delay(2500);
-      //HAL_ADC_Start_DMA (&hadc1, (uint32_t*) &ADC_Data, 5);
-//      HAL_GPIO_WritePin(FAN_EN_GPIO_Port, FAN_EN_Pin, GPIO_PIN_SET);
-//	  for(int i = 1; i <= 500; i++)
-//	  {
-//		  HAL_Delay(100);
-//		  g_arr1[F_SET] = i;
-//	  if(g_arr1[BRK_RESET] == 1)
-//	  {
-//		  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-//		  HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
-//		  g_arr1[BRK_RESET] = 0;
-//		  g_TIM1_reInit();
-//	  }
-//	  }
 
-//	  HAL_Delay(1000);
-//	  g_arr1[ANGLE]++;
-//	  g_uartSysTick();
-//	  for(int i = 500; i >= 1; i--)
-//	  {
-//		  HAL_Delay(100);
-//		  g_arr1[F_SET] = i;
-//	  }
-//	  HAL_Delay(1000);
-//	  g_uartSysTick();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

@@ -35,13 +35,13 @@ uint32_t sinTableArray[90] =
     };
 
 
-void g_TIM1_init()	//инициализация таймера 1 и подготовка АЦП. Вызвать до входа в while(1)
+void g_TIM1_init()//инициализация таймера 1 и подготовка АЦП. Вызвать до входа в while(1)
 {
 	/*
 	 * Калибруем АЦП и выставляем нули
 	 */
 
-	HAL_ADCEx_Calibration_Start (&hadc1);
+	HAL_ADCEx_Calibration_Start(&hadc1);
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) &g_arr2, 5);
 	HAL_Delay(10);
 	g_arr2[ZERO_U] = g_arr2[ADC_I_U];
@@ -78,22 +78,10 @@ void g_TIM1_init()	//инициализация таймера 1 и подгот
 	g_arr2[ZERO_V] = (g_arr2[ZERO_V] + g_arr2[ADC_I_V]) / 2;
 	g_arr2[ZERO_SUM] = (g_arr2[ZERO_SUM] + g_arr2[ADC_I_SUM]) / 2;
 
-//	//	предзагружаем таймер 1 под частоту 1 Гц
-
-//	g_arr1[REP_CNT] = 1;
-//	g_arr1[F_SET] = 1;
 	g_arr1[F_STEPUP] = 10;				//todo считывания параметров из флешки
 	g_arr1[F_STEPDOWN] = 10;
-//	g_arr1[F_SET_SHDW] = g_arr1[F_SET];
+
 	g_arr1[AMPLITUDE] = 100;
-//	calcRepeat();
-//	TIM1->ARR  = g_arr1[ARR];
-//	TIM1->CCR1 = calcPhase(g_arr1[ANGLE]);								//вычисление ШИМ для трех фаз, с учетом сдвига фаз
-//	TIM1->CCR2 = calcPhase(g_arr1[ANGLE] + PHASE_SHIFT);
-//	TIM1->CCR3 = calcPhase(g_arr1[ANGLE] + PHASE_SHIFT+ PHASE_SHIFT);
-//
-//	//подготовливаем таймер к запуску ШИМ
-//
 
 	TIM1->CCER |= TIM_CCER_CC1E | TIM_CCER_CC2E | TIM_CCER_CC3E | TIM_CCER_CC1NE
 			| TIM_CCER_CC2NE | TIM_CCER_CC3NE; //outputs enable для прямых и инверсных каналов ШИМ
@@ -101,16 +89,35 @@ void g_TIM1_init()	//инициализация таймера 1 и подгот
 	TIM1->SR = 0;
 	TIM1->DIER |= TIM_DIER_UIE;	//update IT enable
 	g_arr1[INV_STATE] = INV_STOP;
-////	TIM1->CR1  |= TIM_CR1_CEN;	//TIM1 start
-////	TIM1->BDTR |= TIM_BDTR_MOE;	//сброс brake event, при сбросе ставит выходы в 0
 
+	while (1)	//ждем пока поднимется напряжение DC звена и шунтируем ограничитель зарядного тока емкостей
+	{
+		if (g_arr2[ADC_U_HV] > ADC_HV_LIMIT)//если напряжение DC звена больше 250 В (1125 ADC), то замыкаем контакты реле
+		{
+			HAL_GPIO_WritePin(RELAY_EN_GPIO_Port, RELAY_EN_Pin, GPIO_PIN_SET);//замыкаем контакты реле
+			break;
+		}
+	}
 }
-
 
 void g_TIM1_reInit(void)
 {
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) &g_arr2, 5);	//обновляем значения от АЦП
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) &g_arr2, 5);//обновляем значения от АЦП
 
+	if (HAL_GPIO_ReadPin(RELAY_EN_GPIO_Port, RELAY_EN_Pin) == 0)
+	{
+		if (g_arr2[ADC_U_HV] > ADC_HV_LIMIT)//если напряжение DC звена больше 250 В, то замыкаем контакты реле
+		{
+			HAL_GPIO_WritePin(RELAY_EN_GPIO_Port, RELAY_EN_Pin, GPIO_PIN_SET);//замыкаем контакты реле
+		}
+		else
+		{
+			HAL_GPIO_WritePin(RELAY_EN_GPIO_Port, RELAY_EN_Pin, GPIO_PIN_RESET);	//размыкаем контакты реле
+			g_arr1[INV_ERRSTATE] = UNDERVOLTAGE;	//переходим в выкл.
+			TIM1->EGR |= TIM_EGR_BG;//генерируем событие break, отключающее ШИМ
+			return;
+		}
+	}
 	//предзагружаем таймер 1 под частоту 1 Гц
 
 	g_arr1[REP_CNT] = 1;
@@ -118,38 +125,27 @@ void g_TIM1_reInit(void)
 	g_arr1[F_SET_SHDW] = g_arr1[F_SET];
 	g_arr1[AMPLITUDE] = 100;
 	calcRepeat();
-	TIM1->ARR  = g_arr1[ARR];
-	TIM1->CCR1 = calcPhase(g_arr1[ANGLE]);								//вычисление ШИМ для трех фаз, с учетом сдвига фаз
+	TIM1->ARR = g_arr1[ARR];
+	TIM1->CCR1 = calcPhase(g_arr1[ANGLE]);//вычисление ШИМ для трех фаз, с учетом сдвига фаз
 	TIM1->CCR2 = calcPhase(g_arr1[ANGLE] + PHASE_SHIFT);
-	TIM1->CCR3 = calcPhase(g_arr1[ANGLE] + PHASE_SHIFT+ PHASE_SHIFT);
+	TIM1->CCR3 = calcPhase(g_arr1[ANGLE] + PHASE_SHIFT + PHASE_SHIFT);
 
 	TIM1->DIER |= TIM_DIER_BIE;	//break IT enable
 	TIM1->SR = 0;
 	TIM1->DIER |= TIM_DIER_UIE;	//update IT enable
-	TIM1->CR1  |= TIM_CR1_CEN;	//TIM1 start
+	TIM1->CR1 |= TIM_CR1_CEN;	//TIM1 start
 	TIM1->BDTR |= TIM_BDTR_MOE;	//сброс brake event, при сбросе ставит выходы в 0
 	g_arr1[INV_STATE] = INV_RUN;
 	HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
 
 }
 
-uint32_t calcFreq()		//расчет следующего шага для частоты freq, вызывать в первом прерывании от TIM1 для текущего угла
+uint32_t calcFreq()	//расчет следующего шага для частоты freq, вызывать в первом прерывании от TIM1 для текущего угла
 {
-	if (checkTemperature())				//проверяем температуру
-	{
-		return OVERTEMPERATURE;			//возвращаем ошибку
-	}
-	if (checkCurrent())					//проверяем токи
-	{
-		return OVERCURRENT;			//возвращаем ошибку
-	}
-	if (checkVoltage())					//проверяем напряжение DC звена
-	{
-		return OVERVOLTAGE;			//возвращаем ошибку
-	}
-
-	calcPWM();	//считаем ШИМ
-
+	checkTemperature();			//проверяем температуру
+	checkCurrent();				//проверяем токи
+	checkVoltage();				//проверяем напряжение DC звена
+	calcPWM();					//считаем ШИМ
 
 	return 0;
 }
@@ -181,12 +177,14 @@ uint32_t checkTemperature()
 	}
 	else		//если температура больше 70 градусов
 	{
-		TIM1->EGR |= TIM_EGR_BG;	//генерируем событие break, отключающее ШИМ
 		g_arr1[INV_ERRSTATE] = OVERTEMPERATURE;		//устанавливаем код ошибки
+		TIM1->EGR |= TIM_EGR_BG;	//генерируем событие break, отключающее ШИМ
 		return OVERTEMPERATURE;						//выключаемся по перегреву
 	}
 
-	return WTF_ERROR;								//как я сюда вообще попал?
+	g_arr1[INV_ERRSTATE] = WTF_ERROR;		//устанавливаем код ошибки
+	TIM1->EGR |= TIM_EGR_BG;				//генерируем событие break, отключающее ШИМ
+	return WTF_ERROR;						//как я сюда вообще попал?
 }
 
 uint32_t checkCurrent()	//ToDo проверка выхода тока за установленные пределы, ограничение тока
@@ -194,8 +192,14 @@ uint32_t checkCurrent()	//ToDo проверка выхода тока за ус�
 	return NO_ERRORS; //заглушка
 }
 
-uint32_t checkVoltage()	//ToDo проверка напряжения DC звена, коррекция DC звена, включение нагрузки
+uint32_t checkVoltage()	//ToDo проверка напряжения DC звена, коррекция DC звена, включение нагрузки		todo проверка на перенапряжение (при торможении)
 {
+	if(g_arr2[ADC_U_HV] < ADC_HV_LIMIT)	//если напряжение DC меньше порога 250 В (1125 ADC), то замыкаем контакты реле
+	{
+		HAL_GPIO_WritePin(RELAY_EN_GPIO_Port, RELAY_EN_Pin, GPIO_PIN_RESET);	//размыкаем контакты реле
+		g_arr1[INV_ERRSTATE] = UNDERVOLTAGE;	//переходим в выкл.
+		TIM1->EGR |= TIM_EGR_BG;//генерируем событие break, отключающее ШИМ
+	}
 	return NO_ERRORS; //заглушка
 }
 
@@ -226,7 +230,7 @@ uint32_t calcPWM()		//расчет ШИМ
 		g_arr2[I_V] = (g_arr2[ADC_I_V] - g_arr2[ZERO_V]) * 8;		//mA
 		g_arr2[I_W] = 0 - g_arr2[I_U] - g_arr2[I_V];	//mA
 		g_arr2[I_SUM] = (g_arr2[ADC_I_SUM] - g_arr2[ZERO_SUM]) * 8;	//mA
-		g_arr2[U_HV] = g_arr2[ADC_U_HV] / 5;		//V
+		g_arr2[U_HV] = (g_arr2[ADC_U_HV] * 10) / 45;		//V
 		g_arr2[TEMPERATURE] = (4708 - g_arr2[ADC_TEMP]) / 33;//C	correct for 50-100 C
 		HAL_ADC_Start_DMA(&hadc1, (uint32_t*) &g_arr2, 5);
 

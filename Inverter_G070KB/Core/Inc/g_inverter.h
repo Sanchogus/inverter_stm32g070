@@ -8,11 +8,12 @@
 #ifndef INC_G_INVERTER_H_
 #define INC_G_INVERTER_H_
 
-#define ADC_TEMP_40C	3347
-#define ADC_TEMP_50C 	3072
-#define ADC_TEMP_70C	2389
+#define ADC_TEMP_40C	3347		//default 3347
+#define ADC_TEMP_50C 	3072		//default 3072
+#define ADC_TEMP_70C	2389		//default 2389
+#define ADC_HV_LIMIT	1125		//250 VDC = 1125 ADC
 
-#define PHASE_SHIFT     120
+#define PHASE_SHIFT     120			//default 120 degrees
 #include "stm32g070xx.h"
 #include "main.h"
 #include "adc.h"
